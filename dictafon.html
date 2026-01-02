@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dictafon Română</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      color: white;
+    }
+    .title { font-size: 24px; margin-top: 20px; }
+    .output {
+      width: 100%;
+      max-width: 600px;
+      min-height: 200px;
+      background: #0f0f1a;
+      border: 2px solid #3a3a5c;
+      border-radius: 12px;
+      padding: 15px;
+      font-size: 18px;
+      line-height: 1.6;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+      overflow-y: auto;
+    }
+    .record {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      border: none;
+      background: linear-gradient(135deg, #e74c3c, #c0392b);
+      color: white;
+      font-size: 50px;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+    }
+    .record:active { transform: scale(0.95); }
+    .record.recording {
+      background: linear-gradient(135deg, #27ae60, #2ecc71);
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); }
+      50% { box-shadow: 0 0 0 20px rgba(46, 204, 113, 0); }
+    }
+    .status {
+      font-size: 16px;
+      color: #4fc3f7;
+      min-height: 24px;
+      text-align: center;
+    }
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .toolbar button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      background: #3a3a5c;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .toolbar button:hover { background: #4fc3f7; color: #000; }
+    .toolbar button:active { transform: scale(0.95); }
+    .setup {
+      background: #0f0f1a;
+      border: 2px solid #3a3a5c;
+      border-radius: 12px;
+      padding: 30px;
+      width: 100%;
+      max-width: 500px;
+      text-align: center;
+    }
+    .setup input {
+      width: 100%;
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 8px;
+      border: 2px solid #3a3a5c;
+      background: #1a1a2e;
+      color: white;
+      font-size: 16px;
+    }
+    .setup input:focus { border-color: #4fc3f7; outline: none; }
+    .setup button {
+      padding: 15px 40px;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #4fc3f7, #0288d1);
+      color: #000;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .setup p { color: #aaa; margin: 10px 0; line-height: 1.5; }
+    .hidden { display: none; }
+    .lang-select {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-bottom: 10px;
+    }
+    .lang-select button {
+      padding: 8px 16px;
+      border: 2px solid transparent;
+      border-radius: 8px;
+      background: #3a3a5c;
+      color: white;
+      cursor: pointer;
+    }
+    .lang-select button.active {
+      border-color: #4fc3f7;
+      background: #2a2a4c;
+    }
+    .wake-indicator {
+      font-size: 12px;
+      color: #27ae60;
+      margin-top: -10px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="setup" id="setup">
+    <div class="title">🔑 Setare API Key</div>
+    <p>Introdu Groq API Key-ul tău.<br>Se salvează local, nu se trimite nicăieri.</p>
+    <input type="password" id="keyInput" placeholder="gsk_xxxxxxxxxxxxxxxx">
+    <br>
+    <button id="saveKey">Salvează și Continuă</button>
+  </div>
+
+  <div class="hidden" id="app">
+    <div class="title">🎙️ Dictafon</div>
+    
+    <div class="lang-select">
+      <button id="langRO" class="active">🇷🇴 Română</button>
+      <button id="langEN">🇬🇧 English</button>
+    </div>
+    
+    <div class="output" id="output">Apasă butonul și vorbește...</div>
+    
+    <button class="record" id="rec">🎤</button>
+    
+    <div class="status" id="status"></div>
+    <div class="wake-indicator" id="wakeIndicator"></div>
+    
+    <div class="toolbar">
+      <button id="copy">📋 Copiază</button>
+      <button id="clear">🗑️ Șterge</button>
+      <button id="settings">⚙️ API Key</button>
+    </div>
+  </div>
+
+  <script>
+    let GROQ_API_KEY = localStorage.getItem('groq_key') || '';
+    let mediaRecorder = null;
+    let chunks = [];
+    let isRecording = false;
+    let fullText = '';
+    let currentLang = 'ro';
+    let wakeLock = null;
+
+    async function requestWakeLock() {
+      try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        document.getElementById('wakeIndicator').textContent = '🔒 Ecran blocat aprins';
+      } catch (err) {
+        console.log('Wake Lock nu e suportat:', err.message);
+      }
+    }
+
+    async function releaseWakeLock() {
+      if (wakeLock !== null) {
+        await wakeLock.release();
+        wakeLock = null;
+        document.getElementById('wakeIndicator').textContent = '';
+      }
+    }
+
+    function init() {
+      if (GROQ_API_KEY) {
+        document.getElementById('setup').classList.add('hidden');
+        document.getElementById('app').classList.remove('hidden');
+      } else {
+        document.getElementById('setup').classList.remove('hidden');
+        document.getElementById('app').classList.add('hidden');
+      }
+    }
+
+    document.getElementById('saveKey').onclick = function() {
+      const key = document.getElementById('keyInput').value.trim();
+      if (key) {
+        localStorage.setItem('groq_key', key);
+        GROQ_API_KEY = key;
+        init();
+      }
+    };
+
+    document.getElementById('settings').onclick = function() {
+      if (confirm('Vrei să schimbi API Key-ul?')) {
+        localStorage.removeItem('groq_key');
+        GROQ_API_KEY = '';
+        document.getElementById('keyInput').value = '';
+        init();
+      }
+    };
+
+    document.getElementById('langRO').onclick = function() {
+      currentLang = 'ro';
+      document.getElementById('langRO').classList.add('active');
+      document.getElementById('langEN').classList.remove('active');
+    };
+
+    document.getElementById('langEN').onclick = function() {
+      currentLang = 'en';
+      document.getElementById('langEN').classList.add('active');
+      document.getElementById('langRO').classList.remove('active');
+    };
+
+    const recBtn = document.getElementById('rec');
+    const output = document.getElementById('output');
+    const status = document.getElementById('status');
+
+    recBtn.onclick = function() {
+      if (!isRecording) { startRec(); }
+      else { stopRec(); }
+    };
+
+    function startRec() {
+      const constraints = {
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          channelCount: 1
+        }
+      };
+
+      navigator.mediaDevices.getUserMedia(constraints)
+        .then(function(stream) {
+          mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+          chunks = [];
+          
+          mediaRecorder.ondataavailable = function(e) {
+            chunks.push(e.data);
+          };
+          
+          mediaRecorder.onstop = function() {
+            const blob = new Blob(chunks, { type: 'audio/webm' });
+            sendToGroq(blob);
+            releaseWakeLock();
+          };
+          
+          mediaRecorder.start();
+          requestWakeLock();
+          
+          isRecording = true;
+          recBtn.classList.add('recording');
+          recBtn.textContent = '⏹';
+          status.textContent = 'Înregistrez... Apasă din nou pentru stop';
+        })
+        .catch(function(err) {
+          status.textContent = 'Eroare microfon: ' + err.message;
+        });
+    }
+
+    function stopRec() {
+      if (mediaRecorder && isRecording) {
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(function(t) { t.stop(); });
+        isRecording = false;
+        recBtn.classList.remove('recording');
+        recBtn.textContent = '🎤';
+        status.textContent = 'Procesez...';
+      }
+    }
+
+    function sendToGroq(audioBlob) {
+      const formData = new FormData();
+      formData.append('file', audioBlob, 'audio.webm');
+      formData.append('model', 'whisper-large-v3');
+      formData.append('language', currentLang);
+
+      fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + GROQ_API_KEY },
+        body: formData
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.text) {
+          fullText += data.text + ' ';
+          output.textContent = fullText;
+          status.textContent = '✓ Gata!';
+        } else if (data.error) {
+          status.textContent = 'Eroare: ' + data.error.message;
+        } else {
+          status.textContent = 'Eroare necunoscută';
+        }
+      })
+      .catch(function(err) {
+        status.textContent = 'Eroare: ' + err.message;
+      });
+    }
+
+    document.getElementById('copy').onclick = function() {
+      if (fullText) {
+        navigator.clipboard.writeText(fullText);
+        this.textContent = '✓ Copiat!';
+        const btn = this;
+        setTimeout(function() { btn.textContent = '📋 Copiază'; }, 1500);
+      }
+    };
+
+    document.getElementById('clear').onclick = function() {
+      fullText = '';
+      output.textContent = 'Apasă butonul și vorbește...';
+      status.textContent = '';
+    };
+
+    init();
+  </script>
+</body>
+</html>
