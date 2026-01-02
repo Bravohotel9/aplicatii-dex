@@ -149,7 +149,7 @@
     
     <div class="lang-select">
       <button id="langRO" class="active">🇷🇴 Română</button>
-      <button id="langEN">🇬🇧 English</button>
+      <button id="langEN">🇺🇸 English</button>
     </div>
     
     <div class="output" id="output">Apasă butonul și vorbește...</div>
@@ -161,7 +161,6 @@
     
     <div class="toolbar">
       <button id="copy">📋 Copiază</button>
-      <button id="clear">🗑️ Șterge</button>
       <button id="settings">⚙️ API Key</button>
     </div>
   </div>
@@ -242,6 +241,11 @@
     };
 
     function startRec() {
+      // Ștergere automată la înregistrare nouă
+      fullText = '';
+      output.textContent = '';
+      status.textContent = '';
+      
       const constraints = {
         audio: {
           echoCancellation: true,
@@ -304,7 +308,7 @@
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.text) {
-          fullText += data.text + ' ';
+          fullText = data.text;
           output.textContent = fullText;
           status.textContent = '✓ Gata!';
         } else if (data.error) {
@@ -325,12 +329,6 @@
         const btn = this;
         setTimeout(function() { btn.textContent = '📋 Copiază'; }, 1500);
       }
-    };
-
-    document.getElementById('clear').onclick = function() {
-      fullText = '';
-      output.textContent = 'Apasă butonul și vorbește...';
-      status.textContent = '';
     };
 
     init();
