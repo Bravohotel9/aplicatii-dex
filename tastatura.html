@@ -1,90 +1,143 @@
 <!DOCTYPE html>
-<html>
+<html lang="ro">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Tastatura DEX</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:system-ui;background:#1a1a2e;min-height:100vh;padding:10px;display:flex;flex-direction:column;gap:10px}
-.output{background:#0f0f1a;border:2px solid #3a3a5c;border-radius:12px;padding:15px;min-height:60px;color:white;font-size:18px}
-.toolbar{display:flex;gap:8px;flex-wrap:wrap}
-.toolbar button{padding:10px 16px;border:none;border-radius:8px;background:#3a3a5c;color:white;font-size:14px;cursor:pointer}
-.lang{display:flex;gap:4px}
-.lang button.on{border:2px solid #4fc3f7}
-.keyboard{display:flex;flex-direction:column;gap:6px;max-width:900px;margin:0 auto;width:100%}
-.row{display:flex;justify-content:center;gap:4px}
-.key{min-width:40px;height:50px;border:none;border-radius:8px;background:#3a3a5c;color:white;font-size:16px;cursor:pointer;flex:1;max-width:60px}
-.key:active{background:#4fc3f7;color:black}
-.key.sp{flex:6;max-width:400px}
-.key.w{flex:1.5;max-width:90px}
-.key.w2{flex:2;max-width:120px}
-.key.on{background:#ffb74d}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tastatură Virtuală DEX</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: center;
+    }
+    .output-area {
+      background: #0f0f1a;
+      border: 2px solid #3a3a5c;
+      border-radius: 12px;
+      padding: 15px;
+      width: 100%;
+      max-width: 900px;
+      height: 150px;
+      color: #fff;
+      font-size: 18px;
+      line-height: 1.5;
+      word-wrap: break-word;
+      position: relative;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      transition: border-color 0.2s;
+    }
+    .output-area:focus-within { border-color: #4fc3f7; }
+    .output-area::after {
+      content: '|';
+      animation: blink 1s infinite;
+      color: #4fc3f7;
+      display: inline-block;
+      vertical-align: text-bottom;
+    }
+    @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+    
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+      max-width: 900px;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+    .toolbar-group { display: flex; gap: 8px; }
+    
+    .toolbar button {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      background: #3a3a5c;
+      color: #fff;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .toolbar button:hover { background: #4fc3f7; color: #000; }
+    .toolbar button:active { transform: scale(0.95); }
+    
+    .keyboard {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-width: 900px;
+      width: 100%;
+      margin-top: auto;
+      padding-bottom: 10px;
+    }
+    .row { display: flex; justify-content: center; gap: 4px; }
+    .key {
+      min-width: 32px;
+      height: 55px;
+      border: none;
+      border-radius: 6px;
+      background: linear-gradient(180deg, #3a3a5c 0%, #2a2a4c 100%);
+      color: #fff;
+      font-size: 18px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 0 #1a1a2e, 0 6px 10px rgba(0,0,0,0.3);
+      user-select: none;
+      flex: 1;
+      max-width: 70px;
+      touch-action: manipulation;
+    }
+    .key:hover { background: linear-gradient(180deg, #4a4a6c 0%, #3a3a5c 100%); }
+    .key:active, .key.pressed {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #1a1a2e;
+      background: #4fc3f7;
+      color: #000;
+    }
+    .key.special { background: linear-gradient(180deg, #4fc3f7 0%, #0288d1 100%); color: #000; font-weight: 600; }
+    .key.space { flex: 5; max-width: 400px; }
+    .key.wide { flex: 1.5; max-width: 90px; font-size: 16px; }
+    .key.wider { flex: 2; max-width: 120px; font-size: 14px;}
+    .key.shift-active { background: linear-gradient(180deg, #ffb74d 0%, #f57c00 100%); color: #000; }
+    
+    .mode-indicator {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      background: rgba(79, 195, 247, 0.2);
+      border: 1px solid #4fc3f7;
+      color: #4fc3f7;
+    }
+    .lang-switch button {
+      border: 2px solid transparent;
+      background: #2a2a4c;
+    }
+    .lang-switch button.active { border-color: #4fc3f7; background: #3a3a5c; }
+  </style>
 </head>
 <body>
-<div class="output" id="o"></div>
-<div class="toolbar">
-<div class="lang">
-<button id="bRO" class="on">RO</button>
-<button id="bEN">EN</button>
-<button id="b123">123</button>
-</div>
-<button id="copy">📋 Copiază</button>
-<button id="clear">🗑️ Șterge</button>
-</div>
-<div class="keyboard" id="k"></div>
-<script>
-var t="";
-var lang="ro";
-var sh=false;
-var sym=false;
-var L={
-ro:[["q","w","e","r","t","y","u","i","o","p","ă"],["a","s","d","f","g","h","j","k","l","ș","ț"],["⇧","z","x","c","v","b","n","m","î","â","⌫"],["123",",","SP",".","↵"]],
-en:[["q","w","e","r","t","y","u","i","o","p"],["a","s","d","f","g","h","j","k","l"],["⇧","z","x","c","v","b","n","m","⌫"],["123",",","SP",".","↵"]],
-sym:[["1","2","3","4","5","6","7","8","9","0"],["@","#","€","_","&","-","+","(",")","*"],["ABC","!","?",":",";","'",'"',"/","⌫"],["ABC",",","SP",".","↵"]]
-};
-function u(){document.getElementById("o").textContent=t;}
-function r(){
-var kb=document.getElementById("k");
-kb.innerHTML="";
-var ly=sym?L.sym:L[lang];
-for(var i=0;i<ly.length;i++){
-var row=ly[i];
-var d=document.createElement("div");
-d.className="row";
-for(var j=0;j<row.length;j++){
-var x=row[j];
-var b=document.createElement("button");
-b.className="key";
-if(x=="SP"){b.className+=" sp";b.textContent="␣";}
-else if(x=="⇧"){b.className+=" w";if(sh)b.className+=" on";b.textContent="⇧";}
-else if(x=="⌫"||x=="↵"){b.className+=" w";b.textContent=x;}
-else if(x=="123"||x=="ABC"){b.className+=" w2";b.textContent=x;}
-else{b.textContent=sh?x.toUpperCase():x;}
-b.setAttribute("data-key",x);
-b.onclick=function(){h(this.getAttribute("data-key"));};
-d.appendChild(b);
-}
-kb.appendChild(d);
-}
-}
-function h(x){
-if(x=="⇧"){sh=!sh;r();return;}
-if(x=="123"){sym=true;r();return;}
-if(x=="ABC"){sym=false;r();return;}
-if(x=="⌫"){t=t.slice(0,-1);u();return;}
-if(x=="↵"){t+="\n";u();return;}
-if(x=="SP"){t+=" ";}else{t+=sh?x.toUpperCase():x;}
-if(sh&&!sym){sh=false;r();}
-u();
-}
-document.getElementById("bRO").onclick=function(){lang="ro";sym=false;document.getElementById("bRO").classList.add("on");document.getElementById("bEN").classList.remove("on");document.getElementById("b123").classList.remove("on");r();};
-document.getElementById("bEN").onclick=function(){lang="en";sym=false;document.getElementById("bEN").classList.add("on");document.getElementById("bRO").classList.remove("on");document.getElementById("b123").classList.remove("on");r();};
-document.getElementById("b123").onclick=function(){sym=true;document.getElementById("b123").classList.add("on");document.getElementById("bRO").classList.remove("on");document.getElementById("bEN").classList.remove("on");r();};
-document.getElementById("copy").onclick=function(){navigator.clipboard.writeText(t);document.getElementById("copy").textContent="✓ Copiat!";setTimeout(function(){document.getElementById("copy").textContent="📋 Copiază";},1500);};
-document.getElementById("clear").onclick=function(){t="";u();};
-r();
-</script>
-</body>
-</html>
+
+  <div class="output-area" id="output">
+    <span class="text" id="outputText"></span>
+    <span class="mode-indicator" id="modeIndicator">RO</span>
+  </div>
+
+  <div class="toolbar">
+    <div class="lang-switch toolbar-group">
+      <button id="btnRO" class="active">RO</button>
+      <button id="btnEN">EN</button>
+      <button id="btnSYM">123</button>
+    </div>
+    <div class="to
